@@ -1,0 +1,265 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Simulador de la Circunferencia</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: plano cartesiano a la izquierda (protagonista), panel de control y ecuaciones a la derecha; se apila en teléfono. */
+:root{
+  --bg:#f3f5f9; --panel:#ffffff; --fg:#14213d; --muted:#5a6683; --line:#d9dfea;
+  --grid:#e6eaf2; --axis:#8a95ad; --navy:#1b2a4a; --orange:#e2711d; --gold:#c99a1e;
+  --in:#2f8f5b; --out:#b4412f; --on:#c99a1e;
+  --f-display:"Archivo",system-ui,sans-serif; --f-body:"IBM Plex Sans",system-ui,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1626; --panel:#172137; --fg:#e8ecf5; --muted:#9aa6c2; --line:#2a3653;
+  --grid:#1f2a43; --axis:#5f6c8c; --navy:#9fb4e0; --orange:#f08a3a; --gold:#e3b84a;
+  --in:#55c286; --out:#ef7a66; --on:#e3b84a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1626; --panel:#172137; --fg:#e8ecf5; --muted:#9aa6c2; --line:#2a3653;
+  --grid:#1f2a43; --axis:#5f6c8c; --navy:#9fb4e0; --orange:#f08a3a; --gold:#e3b84a;
+  --in:#55c286; --out:#ef7a66; --on:#e3b84a; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-block:20px 32px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 20px}
+h1{font-family:var(--f-display);font-weight:800;font-size:clamp(1.5rem,3.2vw,2.1rem);margin:0;letter-spacing:-.01em;text-wrap:balance}
+h1 span{color:var(--orange)}
+.sub{color:var(--muted);margin:0;max-width:62ch}
+.main{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:860px){.main{grid-template-columns:1fr}}
+.board{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;position:relative}
+canvas{display:block;width:100%;aspect-ratio:1/1;max-width:100%;touch-action:none;cursor:grab;border-radius:6px}
+canvas.dragging{cursor:grabbing}
+.hint{font-size:.82rem;color:var(--muted);margin:8px 4px 2px}
+.side{display:flex;flex-direction:column;gap:14px;min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.label{font-family:var(--f-display);font-weight:700;font-size:.74rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0}
+.ctrl{display:grid;grid-template-columns:4.6rem 1fr 3.6rem;align-items:center;gap:10px}
+.ctrl label{font-family:var(--f-mono);font-weight:600}
+.ctrl output{font-family:var(--f-mono);text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--orange)}
+.eq{font-family:var(--f-mono);font-size:clamp(1.05rem,2.2vw,1.3rem);font-weight:600;overflow-x:auto;white-space:nowrap;padding:4px 0}
+.eq.ord{color:var(--orange)}
+.eq.gen{color:var(--navy)}
+.eqname{font-size:.85rem;color:var(--muted);margin:0}
+.steps{font-family:var(--f-mono);font-size:.86rem;color:var(--muted);overflow-x:auto;white-space:nowrap;border-top:1px dashed var(--line);padding-top:8px;line-height:1.7}
+.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 16px;margin:0}
+.facts div{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding:3px 0}
+.facts dt{color:var(--muted)} .facts dd{margin:0;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.pt{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.chip{font-family:var(--f-mono);font-size:.82rem;font-weight:600;padding:2px 9px;border-radius:999px;border:1.5px solid currentColor}
+.chip.in{color:var(--in)} .chip.out{color:var(--out)} .chip.on{color:var(--on)}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+button{font:600 .85rem var(--f-body);color:var(--fg);background:transparent;border:1.5px solid var(--line);border-radius:7px;padding:6px 11px;cursor:pointer}
+button:hover{border-color:var(--orange)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+button.primary{background:var(--orange);border-color:var(--orange);color:#fff}
+.toggle{display:flex;align-items:center;gap:6px;font-size:.88rem;color:var(--muted)}
+.ctx{font-size:.9rem;color:var(--muted);margin:0}
+.ctx b{color:var(--fg)}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Ecuaciones de la <span>circunferencia</span></h1>
+    <p class="sub">Arrastra el centro <b>C</b> o el punto del radio, o usa los deslizadores. Observa cómo cambian la forma ordinaria y la forma general.</p>
+  </header>
+
+  <div class="main">
+    <div class="board">
+      <canvas id="cv" aria-label="Plano cartesiano con la circunferencia"></canvas>
+      <p class="hint">Escala: 1 unidad = 1 m. Puntos de arrastre: centro (naranja), radio (dorado), punto de prueba P (verde/rojo).</p>
+    </div>
+
+    <div class="side">
+      <div class="card">
+        <p class="label">Parámetros</p>
+        <div class="ctrl"><label for="h">h</label><input id="h" type="range" min="-8" max="8" step="0.5" value="3"><output id="hv">3</output></div>
+        <div class="ctrl"><label for="k">k</label><input id="k" type="range" min="-8" max="8" step="0.5" value="2"><output id="kv">2</output></div>
+        <div class="ctrl"><label for="r">r</label><input id="r" type="range" min="0.5" max="9" step="0.5" value="5"><output id="rv">5</output></div>
+        <div class="row">
+          <button id="origin">Centro en el origen</button>
+          <button id="ctx" class="primary">Contexto: aspersor</button>
+          <label class="toggle"><input id="snap" type="checkbox"> Pasos de ¼ (si no, de ½)</label>
+        </div>
+      </div>
+
+      <div class="card">
+        <p class="label">Forma ordinaria (canónica)</p>
+        <div class="eq ord" id="eqOrd"></div>
+        <p class="eqname">(x − h)² + (y − k)² = r²</p>
+        <p class="label">Forma general</p>
+        <div class="eq gen" id="eqGen"></div>
+        <p class="eqname">x² + y² + Dx + Ey + F = 0, con D = −2h, E = −2k, F = h² + k² − r². Los valores se muestran como fracciones exactas.</p>
+        <div class="steps" id="steps"></div>
+      </div>
+
+      <div class="card">
+        <p class="label">Elementos</p>
+        <dl class="facts">
+          <div><dt>Centro</dt><dd id="fC"></dd></div>
+          <div><dt>Radio</dt><dd id="fR"></dd></div>
+          <div><dt>Diámetro</dt><dd id="fD"></dd></div>
+          <div><dt>Perímetro</dt><dd id="fP"></dd></div>
+          <div><dt>Área</dt><dd id="fA"></dd></div>
+          <div><dt>D, E, F</dt><dd id="fDEF"></dd></div>
+        </dl>
+      </div>
+
+      <div class="card">
+        <p class="label">Punto de prueba P</p>
+        <div class="pt"><span id="pCoord" style="font-family:var(--f-mono)"></span><span id="pChip" class="chip"></span></div>
+        <div class="steps" id="pSteps" style="border-top:0;padding-top:0"></div>
+        <p class="ctx" id="ctxNote" hidden><b>Contexto:</b> aspersor en (3, 2) con alcance 5 m. Mueve P al árbol (7, 4), a la banca (8, 3) y a la fuente (6, 6). ¿Cuál se riega?</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const cv=$('cv'),ctx=cv.getContext('2d');
+const S={h:3,k:2,r:5,px:7,py:4};
+const RANGE=10;
+let drag=null;
+
+function css(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
+function gcd(a,b){return b?gcd(b,a%b):a}
+function fmt(v){ // fracción exacta (denominadores hasta 64)
+  for(const d of [1,2,4,8,16,32,64]){const n=Math.round(v*d);if(Math.abs(n/d-v)<1e-9){
+    if(n===0)return '0';const g=gcd(Math.abs(n),d),nn=n/g,dd=d/g;
+    const s=nn<0?'−':'';return dd===1?s+Math.abs(nn):s+Math.abs(nn)+'/'+dd;}}
+  return (Math.round(v*100)/100).toString();
+}
+function piTerm(v){const f=fmt(v);if(f==='1')return 'π';return f.includes('/')?'('+f+')π':f+'π'}
+function sq(t){return t+'²'}
+function binom(v,name){ // (x − h)²
+  if(Math.abs(v)<1e-9) return name+'²';
+  return '('+name+(v>0?' − ':' + ')+fmt(Math.abs(v))+')²';
+}
+function term(c,name,first){ // coeficiente con signo
+  if(Math.abs(c)<1e-9) return '';
+  const a=Math.abs(c), s=c<0?' − ':' + ';
+  const body=(name&&a===1)?name:fmt(a)+name;
+  return first?(c<0?'−':'')+body:s+body;
+}
+function snap(v){const q=$('snap').checked?4:2;return Math.round(v*q)/q}
+
+function size(){
+  const r=cv.getBoundingClientRect(),d=window.devicePixelRatio||1;
+  cv.width=Math.round(r.width*d);cv.height=Math.round(r.width*d);
+  ctx.setTransform(d,0,0,d,0,0);
+  draw();
+}
+function W(){return cv.getBoundingClientRect().width}
+function toPx(x,y){const w=W(),u=w/(2*RANGE);return [w/2+x*u,w/2-y*u]}
+function toXY(px,py){const w=W(),u=w/(2*RANGE);return [(px-w/2)/u,(w/2-py)/u]}
+
+function draw(){
+  const w=W(),u=w/(2*RANGE);
+  ctx.clearRect(0,0,w,w);
+  ctx.fillStyle=css('--panel');ctx.fillRect(0,0,w,w);
+  // cuadrícula
+  ctx.lineWidth=1;ctx.strokeStyle=css('--grid');
+  for(let i=-RANGE;i<=RANGE;i++){const [a]=toPx(i,0),[,b]=toPx(0,i);
+    ctx.beginPath();ctx.moveTo(a,0);ctx.lineTo(a,w);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,b);ctx.lineTo(w,b);ctx.stroke();}
+  // ejes
+  ctx.strokeStyle=css('--axis');ctx.lineWidth=1.4;
+  const [ox,oy]=toPx(0,0);
+  ctx.beginPath();ctx.moveTo(0,oy);ctx.lineTo(w,oy);ctx.moveTo(ox,0);ctx.lineTo(ox,w);ctx.stroke();
+  ctx.fillStyle=css('--muted');ctx.font='11px "IBM Plex Mono",monospace';ctx.textAlign='center';ctx.textBaseline='top';
+  for(let i=-RANGE+2;i<RANGE;i+=2){if(!i)continue;const [a]=toPx(i,0);ctx.fillText(i,a,oy+4);}
+  ctx.textAlign='right';ctx.textBaseline='middle';
+  for(let i=-RANGE+2;i<RANGE;i+=2){if(!i)continue;const [,b]=toPx(0,i);ctx.fillText(i,ox-5,b);}
+  ctx.textAlign='left';ctx.fillText('x',w-12,oy-10);ctx.fillText('y',ox+6,10);
+
+  const [cx,cy]=toPx(S.h,S.k);
+  // relleno y circunferencia
+  ctx.beginPath();ctx.arc(cx,cy,S.r*u,0,Math.PI*2);
+  ctx.fillStyle=css('--orange');ctx.globalAlpha=.08;ctx.fill();ctx.globalAlpha=1;
+  ctx.lineWidth=3;ctx.strokeStyle=css('--orange');ctx.stroke();
+  // radio
+  const [rx,ry]=toPx(S.h+S.r,S.k);
+  ctx.setLineDash([6,5]);ctx.lineWidth=2;ctx.strokeStyle=css('--gold');
+  ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(rx,ry);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle=css('--gold');ctx.font='600 13px "IBM Plex Mono",monospace';ctx.textAlign='center';ctx.textBaseline='bottom';
+  ctx.fillText('r = '+fmt(S.r),(cx+rx)/2,cy-6);
+  // P
+  const d=Math.hypot(S.px-S.h,S.py-S.k), st=status(d);
+  const [px,py]=toPx(S.px,S.py);
+  ctx.setLineDash([3,4]);ctx.lineWidth=1.5;ctx.strokeStyle=css('--muted');
+  ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(px,py);ctx.stroke();ctx.setLineDash([]);
+  dot(px,py,7,st==='in'?css('--in'):st==='on'?css('--on'):css('--out'));
+  ctx.fillStyle=css('--fg');ctx.font='600 12px "IBM Plex Mono",monospace';ctx.textAlign='left';ctx.textBaseline='bottom';
+  ctx.fillText('P',px+9,py-4);
+  // manijas
+  dot(rx,ry,8,css('--gold'));
+  dot(cx,cy,9,css('--orange'));
+  ctx.fillStyle=css('--fg');ctx.font='700 13px "IBM Plex Mono",monospace';ctx.textAlign='left';ctx.textBaseline='top';
+  ctx.fillText('C('+fmt(S.h)+', '+fmt(S.k)+')',cx+10,cy+6);
+}
+function dot(x,y,r,c){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=c;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle=css('--panel');ctx.stroke();}
+function status(d){return Math.abs(d-S.r)<1e-6?'on':d<S.r?'in':'out'}
+
+function update(){
+  const {h,k,r}=S, D=-2*h,E=-2*k,F=h*h+k*k-r*r;
+  $('h').value=h;$('k').value=k;$('r').value=r;
+  $('hv').textContent=fmt(h);$('kv').textContent=fmt(k);$('rv').textContent=fmt(r);
+  $('eqOrd').textContent=binom(h,'x')+' + '+binom(k,'y')+' = '+fmt(r*r);
+  let g='x² + y²'+term(D,'x')+term(E,'y')+term(F,'')+' = 0';
+  $('eqGen').textContent=g;
+  $('steps').innerHTML=
+    'Desarrollo: '+expand(h,'x')+' + '+expand(k,'y')+' = '+fmt(r*r)+'<br>'+
+    'Igualar a cero: F = '+fmt(h*h)+' + '+fmt(k*k)+' − '+fmt(r*r)+' = '+fmt(F);
+  $('fC').textContent='('+fmt(h)+', '+fmt(k)+')';
+  $('fR').textContent=fmt(r)+' m';
+  $('fD').textContent=fmt(2*r)+' m';
+  $('fP').textContent=piTerm(2*r)+' m';
+  $('fA').textContent=piTerm(r*r)+' m²';
+  $('fDEF').textContent=fmt(D)+', '+fmt(E)+', '+fmt(F);
+  const dx=S.px-h,dy=S.py-k,d2=dx*dx+dy*dy,st=status(Math.sqrt(d2));
+  $('pCoord').textContent='P('+fmt(S.px)+', '+fmt(S.py)+')';
+  const chip=$('pChip');chip.className='chip '+st;
+  chip.textContent=st==='in'?'Dentro':st==='on'?'Sobre la circunferencia':'Fuera';
+  $('pSteps').innerHTML='('+fmt(S.px)+' − '+par(h)+')² + ('+fmt(S.py)+' − '+par(k)+')² = '+fmt(d2)+
+    ' '+(st==='in'?'&lt;':st==='on'?'=':'&gt;')+' r² = '+fmt(r*r);
+  draw();
+}
+function par(v){return v<0?'('+fmt(v)+')':fmt(v)}
+function expand(v,n){ // (x − h)² = x² − 2hx + h²
+  if(Math.abs(v)<1e-9) return n+'²';
+  return n+'²'+term(-2*v,n)+' + '+fmt(v*v);
+}
+
+['h','k','r'].forEach(id=>$(id).addEventListener('input',e=>{S[id]=parseFloat(e.target.value);update()}));
+$('snap').addEventListener('change',e=>{const st=e.target.checked?0.25:0.5;['h','k','r'].forEach(id=>$(id).step=st);});
+$('origin').onclick=()=>{S.h=0;S.k=0;$('ctxNote').hidden=true;update()};
+$('ctx').onclick=()=>{S.h=3;S.k=2;S.r=5;S.px=7;S.py=4;$('ctxNote').hidden=false;update()};
+
+function pos(e){const b=cv.getBoundingClientRect();return toXY(e.clientX-b.left,e.clientY-b.top)}
+cv.addEventListener('pointerdown',e=>{
+  const [x,y]=pos(e),u=W()/(2*RANGE),tol=14/u;
+  const near=(a,b)=>Math.hypot(x-a,y-b)<tol;
+  drag=near(S.h,S.k)?'c':near(S.h+S.r,S.k)?'r':near(S.px,S.py)?'p':null;
+  if(drag){cv.setPointerCapture(e.pointerId);cv.classList.add('dragging');}
+});
+cv.addEventListener('pointermove',e=>{
+  if(!drag)return;const [x,y]=pos(e);const c=v=>Math.max(-RANGE+0.5,Math.min(RANGE-0.5,v));
+  if(drag==='c'){S.h=Math.max(-8,Math.min(8,snap(x)));S.k=Math.max(-8,Math.min(8,snap(y)));}
+  else if(drag==='r'){S.r=Math.max(0.5,Math.min(9,snap(Math.hypot(x-S.h,y-S.k))));}
+  else{S.px=snap(c(x));S.py=snap(c(y));}
+  update();
+});
+['pointerup','pointercancel'].forEach(t=>cv.addEventListener(t,()=>{drag=null;cv.classList.remove('dragging')}));
+
+new ResizeObserver(size).observe(cv);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',draw);
+new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+$('ctxNote').hidden=false;
+update();size();
+})();
+</script>
+
+</body></html>
