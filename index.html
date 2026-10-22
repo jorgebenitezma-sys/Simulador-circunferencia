@@ -40,9 +40,13 @@ canvas.dragging{cursor:grabbing}
 .side{display:flex;flex-direction:column;gap:14px;min-width:0}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .label{font-family:var(--f-display);font-weight:700;font-size:.74rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0}
-.ctrl{display:grid;grid-template-columns:4.6rem 1fr 3.6rem;align-items:center;gap:10px}
+.ctrl{display:grid;grid-template-columns:2rem 1fr 5.6rem 2.4rem;align-items:center;gap:8px}
+.sq{font:700 1rem var(--f-mono);padding:4px 0;width:100%}
+.num{width:100%;box-sizing:border-box;font:600 1rem var(--f-mono);text-align:center;color:var(--fg);background:var(--bg);border:1.5px solid var(--line);border-radius:7px;padding:5px 4px}
+.num.err{border-color:var(--out)}
+.numhelp{font-size:.8rem;color:var(--muted);margin:0}
+.numhelp.err{color:var(--out)}
 .ctrl label{font-family:var(--f-mono);font-weight:600}
-.ctrl output{font-family:var(--f-mono);text-align:right;font-variant-numeric:tabular-nums}
 input[type=range]{width:100%;accent-color:var(--orange)}
 .eq{font-family:var(--f-mono);font-size:clamp(1.05rem,2.2vw,1.3rem);font-weight:600;overflow-x:auto;white-space:nowrap;padding:4px 0}
 .eq.ord{color:var(--orange)} .eq.gen{color:var(--navy)}
@@ -79,7 +83,7 @@ button.primary{background:var(--orange);border-color:var(--orange);color:#fff}
 <div class="wrap">
   <header>
     <h1>Ecuaciones de la <span>circunferencia</span></h1>
-    <p class="sub" id="subtitle">Arrastra el centro C o el punto del radio, o usa los deslizadores. Observa cómo cambian la forma ordinaria y la forma general.</p>
+    <p class="sub" id="subtitle">Arrastra el centro C o el punto del radio, usa los deslizadores o escribe los valores. Observa cómo cambian la forma ordinaria y la forma general.</p>
     <div class="themes" role="group" aria-label="Tema">
       <button id="thLight" class="th" aria-pressed="false">Claro</button>
       <button id="thDark" class="th" aria-pressed="false">Oscuro</button>
@@ -94,19 +98,20 @@ button.primary{background:var(--orange);border-color:var(--orange);color:#fff}
   <div class="main">
     <div class="board">
       <canvas id="cv" aria-label="Plano cartesiano con la circunferencia"></canvas>
-      <p class="hint" id="hint">Puntos de arrastre: centro (naranja), radio (dorado) y punto de prueba P.</p>
+      <p class="hint" id="hint">Puntos de arrastre: centro (naranja) y radio (dorado).</p>
     </div>
 
     <div class="side">
       <div class="card">
         <p class="label">Parámetros</p>
-        <div class="ctrl"><label for="h">h</label><input id="h" type="range" min="-8" max="8" step="0.5" value="0"><output id="hv">0</output></div>
-        <div class="ctrl"><label for="k">k</label><input id="k" type="range" min="-8" max="8" step="0.5" value="0"><output id="kv">0</output></div>
-        <div class="ctrl"><label for="r">r</label><input id="r" type="range" min="0.5" max="9" step="0.5" value="4"><output id="rv">4</output></div>
+        <div class="ctrl"><label for="h">h</label><input id="h" type="range" min="-8" max="8" step="0.5" value="0"><input id="hv" class="num" type="text" inputmode="decimal" autocomplete="off" aria-label="Valor de h"><button class="sq" data-for="hv" type="button" aria-label="Insertar raíz cuadrada en h">√</button></div>
+        <div class="ctrl"><label for="k">k</label><input id="k" type="range" min="-8" max="8" step="0.5" value="0"><input id="kv" class="num" type="text" inputmode="decimal" autocomplete="off" aria-label="Valor de k"><button class="sq" data-for="kv" type="button" aria-label="Insertar raíz cuadrada en k">√</button></div>
+        <div class="ctrl"><label for="r">r</label><input id="r" type="range" min="0.5" max="9" step="0.5" value="4"><input id="rv" class="num" type="text" inputmode="decimal" autocomplete="off" aria-label="Valor de r"><button class="sq" data-for="rv" type="button" aria-label="Insertar raíz cuadrada en r">√</button></div>
         <div class="row">
           <button id="origin">Centro en el origen</button>
           <label class="toggle"><input id="snap" type="checkbox"> Pasos de ¼ (si no, de ½)</label>
         </div>
+        <p class="numhelp" id="numhelp">Escribe un valor y presiona Enter. Acepta enteros, fracciones (−3/4), decimales (2.5) y raíces (√5, 2√3, √2/2); el botón √ inserta el símbolo.</p>
       </div>
 
       <!-- Panel de problemas -->
@@ -153,11 +158,6 @@ button.primary{background:var(--orange);border-color:var(--orange);color:#fff}
         </dl>
       </div>
 
-      <div class="card" id="testCard">
-        <p class="label">Punto de prueba P</p>
-        <div class="pt"><span id="pCoord" style="font-family:var(--f-mono)"></span><span id="pChip" class="chip"></span></div>
-        <div class="steps" id="pSteps" style="border-top:0;padding-top:0"></div>
-      </div>
     </div>
   </div>
 </div>
@@ -167,7 +167,7 @@ button.primary{background:var(--orange);border-color:var(--orange);color:#fff}
 const $=id=>document.getElementById(id);
 const cv=$('cv'),ctx=cv.getContext('2d');
 const RANGE=10;
-const S={h:0,k:0,r:4,px:3,py:3};
+const S={h:0,k:0,r:4,x:{}};
 let mode='exp', cur=0, drag=null;
 const saved={exp:{h:0,k:0,r:4}};
 
@@ -207,22 +207,45 @@ const PROBS=[
 function css(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
 function gcd(a,b){return b?gcd(b,a%b):a}
 function fmt(v){
-  for(const d of [1,2,4,8,16,32,64]){const n=Math.round(v*d);if(Math.abs(n/d-v)<1e-9){
+  for(const d of [1,2,3,4,5,6,8,9,10,12,16,18,20,24,25,32,36,64,100]){const n=Math.round(v*d);if(Math.abs(n/d-v)<1e-9){
     if(n===0)return '0';const g=gcd(Math.abs(n),d),nn=n/g,dd=d/g;
     const s=nn<0?'−':'';return dd===1?s+Math.abs(nn):s+Math.abs(nn)+'/'+dd;}}
   return (Math.round(v*100)/100).toString();
 }
-function piTerm(v){const f=fmt(v);if(f==='1')return 'π';return f.includes('/')?'('+f+')π':f+'π'}
-function binom(v,name){if(Math.abs(v)<1e-9)return name+'²';return '('+name+(v>0?' − ':' + ')+fmt(Math.abs(v))+')²'}
-function term(c,name,first){
-  if(Math.abs(c)<1e-9)return '';
-  const a=Math.abs(c),s=c<0?' − ':' + ',f=fmt(a);
-  const body=(name&&a===1)?name:(name&&f.includes('/')?'('+f+')'+name:f+name);
-  return first?(c<0?'−':'')+body:s+body;
+// ---- Aritmética exacta: números de la forma (n/d)·√b ----
+function Q(n,d){if(d<0){n=-n;d=-d}const g=gcd(Math.abs(n),d)||1;return {n:n/g,d:d/g}}
+function toQ(v){for(const d of [1,2,3,4,5,6,8,9,10,12,16,18,20,24,25,32,36,64,100]){const n=Math.round(v*d);if(Math.abs(n/d-v)<1e-9)return Q(n,d)}return Q(Math.round(v*100),100)}
+function Rd(n,d,b){ // simplifica √b
+  if(b===0||n===0)return {n:0,d:1,b:1};
+  for(let f=Math.floor(Math.sqrt(b));f>1;f--){if(b%(f*f)===0){n*=f;b/=f*f;f=Math.floor(Math.sqrt(b))+1}}
+  const q=Q(n,d);return {n:q.n,d:q.d,b};
 }
-function ordStr(h,k,r){return binom(h,'x')+' + '+binom(k,'y')+' = '+fmt(r*r)}
-function genStr(h,k,r){return 'x² + y²'+term(-2*h,'x')+term(-2*k,'y')+term(h*h+k*k-r*r,'')+' = 0'}
-function expand(v,n){if(Math.abs(v)<1e-9)return n+'²';return n+'²'+term(-2*v,n)+' + '+fmt(v*v)}
+function toRad(v){return typeof v==='object'?v:Object.assign(toQ(v),{b:1})}
+function rv(R){return R.n/R.d*Math.sqrt(R.b)}
+function rsq(R){return Q(R.n*R.n*R.b,R.d*R.d)}           // R² (racional)
+function rmul(R,k){return Rd(R.n*k,R.d,R.b)}
+function qadd(a,b){return Q(a.n*b.d+b.n*a.d,a.d*b.d)}
+function qneg(a){return Q(-a.n,a.d)}
+function fq(q){if(q.n===0)return '0';const s=q.n<0?'−':'';return s+Math.abs(q.n)+(q.d===1?'':'/'+q.d)}
+function fr(R){
+  if(R.b===1)return fq(R);
+  const s=R.n<0?'−':'',a=Math.abs(R.n),c=(a===1?'':a)+'√'+R.b;
+  return s+c+(R.d===1?'':'/'+R.d);
+}
+function hasOp(str){return str.includes('/')||str.includes('√')}
+function piTerm(R){const f=fr(R);if(f==='1')return 'π';return hasOp(f)?'('+f+')π':f+'π'}
+function binom(R,name){if(R.n===0)return name+'²';return '('+name+(R.n>0?' − ':' + ')+fr({...R,n:Math.abs(R.n)})+')²'}
+function term(R,name,first){
+  if(R.n===0)return '';
+  const A={...R,n:Math.abs(R.n)},f=fr(A),sg=R.n<0?' − ':' + ';
+  const body=(name&&f==='1')?name:(name&&hasOp(f)?'('+f+')'+name:f+name);
+  return first?(R.n<0?'−':'')+body:sg+body;
+}
+function Fof(h,k,r){return qadd(qadd(rsq(h),rsq(k)),qneg(rsq(r)))}
+function ordStr(h,k,r){h=toRad(h);k=toRad(k);r=toRad(r);return binom(h,'x')+' + '+binom(k,'y')+' = '+fq(rsq(r))}
+function genStr(h,k,r){h=toRad(h);k=toRad(k);r=toRad(r);const F=Fof(h,k,r);
+  return 'x² + y²'+term(rmul(h,-2),'x')+term(rmul(k,-2),'y')+term({...F,b:1},'')+' = 0'}
+function expand(R,n){if(R.n===0)return n+'²';return n+'²'+term(rmul(R,-2),n)+' + '+fq(rsq(R))}
 function par(v){return v<0?'('+fmt(v)+')':fmt(v)}
 function snap(v){const q=$('snap').checked?4:2;return Math.round(v*q)/q}
 function stat(d2,r){const r2=r*r;return Math.abs(d2-r2)<1e-9?'on':d2<r2?'in':'out'}
@@ -257,15 +280,9 @@ function draw(){
   ctx.setLineDash([6,5]);ctx.lineWidth=2;ctx.strokeStyle=css('--gold');
   ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(rx,ry);ctx.stroke();ctx.setLineDash([]);
   ctx.fillStyle=css('--gold');ctx.font='600 13px "IBM Plex Mono",monospace';ctx.textAlign='center';ctx.textBaseline='bottom';
-  ctx.fillText('r = '+fmt(S.r),(cx+rx)/2,cy-6);
+  ctx.fillText('r = '+fr(S.x.r),(cx+rx)/2,cy-6);
 
-  if(mode==='exp'){
-    const d2=(S.px-S.h)**2+(S.py-S.k)**2,st=stat(d2,S.r),[px,py]=toPx(S.px,S.py);
-    ctx.setLineDash([3,4]);ctx.lineWidth=1.5;ctx.strokeStyle=css('--muted');
-    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(px,py);ctx.stroke();ctx.setLineDash([]);
-    dot(px,py,7,css('--'+st));
-    ctx.fillStyle=css('--fg');ctx.font='600 12px "IBM Plex Mono",monospace';ctx.textAlign='left';ctx.textBaseline='bottom';ctx.fillText('P',px+9,py-4);
-  }else{
+  if(mode==='prob'){
     const p=PROBS[cur];
     p.objs.forEach(([n,x,y])=>{
       const [px,py]=toPx(x,y);square(px,py,6,css('--navy'));
@@ -276,23 +293,22 @@ function draw(){
   }
   dot(rx,ry,8,css('--gold'));dot(cx,cy,9,css('--orange'));
   ctx.fillStyle=css('--fg');ctx.font='700 13px "IBM Plex Mono",monospace';ctx.textAlign='left';ctx.textBaseline='top';
-  ctx.fillText('C('+fmt(S.h)+', '+fmt(S.k)+')',cx+10,cy+6);
+  ctx.fillText('C('+fr(S.x.h)+', '+fr(S.x.k)+')',cx+10,cy+6);
 }
 
+function sync(){['h','k','r'].forEach(id=>{const X=S.x[id];if(!X||Math.abs(rv(X)-S[id])>1e-9)S.x[id]=toRad(S[id])})}
 function update(){
-  const {h,k,r}=S,D=-2*h,E=-2*k,F=h*h+k*k-r*r;
+  sync();
+  const {h,k,r}=S,H=S.x.h,K=S.x.k,Rr=S.x.r,F=Fof(H,K,Rr);
   $('h').value=h;$('k').value=k;$('r').value=r;
-  $('hv').textContent=fmt(h);$('kv').textContent=fmt(k);$('rv').textContent=fmt(r);
-  $('eqOrd').textContent=ordStr(h,k,r);$('eqGen').textContent=genStr(h,k,r);
-  $('steps').innerHTML='Desarrollo: '+expand(h,'x')+' + '+expand(k,'y')+' = '+fmt(r*r)+'<br>'+
-    'Igualar a cero: F = '+fmt(h*h)+' + '+fmt(k*k)+' − '+fmt(r*r)+' = '+fmt(F);
+  [['hv',H],['kv',K],['rv',Rr]].forEach(([id,v])=>{const el=$(id);if(document.activeElement!==el){el.value=fr(v);el.classList.remove('err')}});
+  $('eqOrd').textContent=ordStr(H,K,Rr);$('eqGen').textContent=genStr(H,K,Rr);
+  $('steps').innerHTML='Desarrollo: '+expand(H,'x')+' + '+expand(K,'y')+' = '+fq(rsq(Rr))+'<br>'+
+    'Igualar a cero: F = '+fq(rsq(H))+' + '+fq(rsq(K))+' − '+fq(rsq(Rr))+' = '+fq(F);
   const un=mode==='prob'?PROBS[cur].unit:'u';
-  $('fC').textContent='('+fmt(h)+', '+fmt(k)+')';$('fR').textContent=fmt(r)+' '+un;$('fD').textContent=fmt(2*r)+' '+un;
-  $('fP').textContent=piTerm(2*r)+' '+un;$('fA').textContent=piTerm(r*r)+' '+un+'²';$('fDEF').textContent=fmt(D)+', '+fmt(E)+', '+fmt(F);
-  const d2=(S.px-h)**2+(S.py-k)**2,st=stat(d2,r);
-  $('pCoord').textContent='P('+fmt(S.px)+', '+fmt(S.py)+')';
-  $('pChip').className='chip '+st;$('pChip').textContent=LBL[st];
-  $('pSteps').innerHTML='('+fmt(S.px)+' − '+par(h)+')² + ('+fmt(S.py)+' − '+par(k)+')² = '+fmt(d2)+' '+(st==='in'?'&lt;':st==='on'?'=':'&gt;')+' r² = '+fmt(r*r);
+  $('fC').textContent='('+fr(H)+', '+fr(K)+')';$('fR').textContent=fr(Rr)+' '+un;$('fD').textContent=fr(rmul(Rr,2))+' '+un;
+  $('fP').textContent=piTerm(rmul(Rr,2))+' '+un;$('fA').textContent=piTerm({...rsq(Rr),b:1})+' '+un+'²';
+  $('fDEF').textContent=fr(rmul(H,-2))+', '+fr(rmul(K,-2))+', '+fq(F);
   draw();
 }
 
@@ -336,10 +352,10 @@ function setMode(m){
   if(mode==='exp')saved.exp={h:S.h,k:S.k,r:S.r};
   mode=m;
   $('tabExp').setAttribute('aria-selected',m==='exp');$('tabProb').setAttribute('aria-selected',m==='prob');
-  $('probCard').hidden=m!=='prob';$('testCard').hidden=m!=='exp';$('origin').hidden=m!=='exp';
+  $('probCard').hidden=m!=='prob';$('origin').hidden=m!=='exp';
   if(m==='exp'){$('solCard').hidden=true;Object.assign(S,saved.exp);
-    $('subtitle').textContent='Arrastra el centro C o el punto del radio, o usa los deslizadores. Observa cómo cambian la forma ordinaria y la forma general.';
-    $('hint').textContent='Puntos de arrastre: centro (naranja), radio (dorado) y punto de prueba P.';update();}
+    $('subtitle').textContent='Arrastra el centro C o el punto del radio, usa los deslizadores o escribe los valores. Observa cómo cambian la forma ordinaria y la forma general.';
+    $('hint').textContent='Puntos de arrastre: centro (naranja) y radio (dorado).';update();}
   else{$('subtitle').textContent='Lee la situación, construye la circunferencia con los datos y verifica. Después escribe las ecuaciones y clasifica cada objeto.';
     $('hint').textContent='Los cuadros azules son los objetos del problema. Mueve el centro y el radio hasta representar la situación.';loadProb(cur);}
 }
@@ -348,19 +364,55 @@ $('check').onclick=check;$('solve').onclick=solve;
 
 ['h','k','r'].forEach(id=>$(id).addEventListener('input',e=>{S[id]=parseFloat(e.target.value);update()}));
 $('snap').addEventListener('change',e=>{const st=e.target.checked?0.25:0.5;['h','k','r'].forEach(id=>$(id).step=st)});
+function parseNum(t){ // devuelve {n,d,b} o null
+  t=String(t).trim().toLowerCase().replace(/[−–]/g,'-').replace(/,/g,'.').replace(/\s+/g,'')
+    .replace(/sqrt|raiz|raíz/g,'√').replace(/√\((\d+)\)/g,'√$1').replace(/\*/g,'');
+  if(!t)return null;
+  let m=t.match(/^(-?)(\d*)√(\d+)(?:\/(\d+))?$/);
+  if(m){const a=m[2]?parseInt(m[2]):1,b=parseInt(m[3]),d=m[4]?parseInt(m[4]):1;if(d===0)return null;return Rd((m[1]?-1:1)*a,d,b)}
+  m=t.match(/^(-?)(\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/);
+  if(m){const d=parseFloat(m[3]);if(d===0)return null;const v=(m[1]?-1:1)*parseFloat(m[2])/d;
+    if(!/\./.test(t))return Object.assign(Q((m[1]?-1:1)*parseInt(m[2]),parseInt(m[3])),{b:1});return toRad(v)}
+  return /^-?\d*\.?\d+$/.test(t)?toRad(parseFloat(t)):null;
+}
+const LIM={h:[-10,10],k:[-10,10],r:[0,14]};
+function commit(id){
+  const el=$(id+'v'),X=parseNum(el.value),v=X?rv(X):NaN,help=$('numhelp');
+  let err='';
+  if(isNaN(v))err='No reconozco «'+el.value+'». Usa un entero, una fracción como −3/4, un decimal como 2.5 o una raíz como 2√3.';
+  else if(id==='r'&&v<=0)err='El radio debe ser mayor que 0.';
+  else if(v<LIM[id][0]||v>LIM[id][1])err=(id==='r'?'El radio':'El valor de '+id)+' debe estar entre '+(id==='r'?'0':'−10')+' y '+LIM[id][1]+' para verse en el plano.';
+  if(err){el.classList.add('err');help.textContent=err;help.classList.add('err');return}
+  el.classList.remove('err');help.classList.remove('err');
+  help.textContent='Escribe un valor y presiona Enter. Acepta enteros, fracciones (−3/4), decimales (2.5) y raíces (√5, 2√3, √2/2); el botón √ inserta el símbolo.';
+  S[id]=v;S.x[id]=X;update();el.value=fr(X);
+}
+['h','k','r'].forEach(id=>{const el=$(id+'v');
+  el.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();commit(id);el.select()}});
+  el.addEventListener('change',()=>commit(id));
+  el.addEventListener('focus',()=>el.select());
+});
+document.querySelectorAll('.sq').forEach(b=>{
+  b.addEventListener('pointerdown',e=>e.preventDefault()); // conserva el foco y el cursor de la casilla
+  b.addEventListener('click',()=>{
+    const el=$(b.dataset.for);
+    if(document.activeElement!==el){el.focus();el.value='√';el.setSelectionRange(1,1);return}
+    const a=el.selectionStart??el.value.length,z=el.selectionEnd??a;
+    el.value=el.value.slice(0,a)+'√'+el.value.slice(z);el.setSelectionRange(a+1,a+1);
+  });
+});
 $('origin').onclick=()=>{S.h=0;S.k=0;update()};
 
 function pos(e){const b=cv.getBoundingClientRect();return toXY(e.clientX-b.left,e.clientY-b.top)}
 cv.addEventListener('pointerdown',e=>{
   const [x,y]=pos(e),u=W()/(2*RANGE),tol=14/u,near=(a,b)=>Math.hypot(x-a,y-b)<tol;
-  drag=near(S.h,S.k)?'c':near(S.h+S.r,S.k)?'r':(mode==='exp'&&near(S.px,S.py))?'p':null;
+  drag=near(S.h,S.k)?'c':near(S.h+S.r,S.k)?'r':null;
   if(drag){cv.setPointerCapture(e.pointerId);cv.classList.add('dragging')}
 });
 cv.addEventListener('pointermove',e=>{
-  if(!drag)return;const [x,y]=pos(e),c=v=>Math.max(-RANGE+0.5,Math.min(RANGE-0.5,v));
+  if(!drag)return;const [x,y]=pos(e);
   if(drag==='c'){S.h=Math.max(-8,Math.min(8,snap(x)));S.k=Math.max(-8,Math.min(8,snap(y)))}
   else if(drag==='r'){S.r=Math.max(0.5,Math.min(9,snap(Math.hypot(x-S.h,y-S.k))))}
-  else{S.px=snap(c(x));S.py=snap(c(y))}
   update();
 });
 ['pointerup','pointercancel'].forEach(t=>cv.addEventListener(t,()=>{drag=null;cv.classList.remove('dragging')}));
